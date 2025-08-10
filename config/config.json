@@ -1,0 +1,12 @@
+{
+  "http": {
+    "port": 8888
+  },
+  "database": {
+    "host": "${DB_HOST:localhost}",
+    "port": "${DB_PORT:5432}",
+    "database": "${DB_NAME:rinha-backend_db}",
+    "user": "${DB_USER}",
+    "password": "${DB_PASSWORD}"
+  }
+}
