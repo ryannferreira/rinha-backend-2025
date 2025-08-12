@@ -3,8 +3,6 @@ package com.rinha.backend.service;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.WebClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
@@ -12,8 +10,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 public class PaymentProcessorClient {
-  private static final Logger logger = LoggerFactory.getLogger(PaymentProcessorClient.class);
-
   private final WebClient webClient;
   private final String processorDefaultUrl;
   private final String processorFallbackUrl;
@@ -40,7 +36,6 @@ public class PaymentProcessorClient {
       .sendJsonObject(requestBody)
       .flatMap(response -> {
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
-          logger.info("Pagamento processado com sucesso no {}: {}", processor, response.bodyAsString());
           return Future.succeededFuture();
 
         } else {

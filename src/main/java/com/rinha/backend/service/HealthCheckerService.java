@@ -3,11 +3,8 @@ package com.rinha.backend.service;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.WebClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class HealthCheckerService {
-  private static final Logger logger = LoggerFactory.getLogger(HealthCheckerService.class);
 
   private final Vertx vertx;
   private final WebClient webClient;
@@ -43,7 +40,6 @@ public class HealthCheckerService {
       .onSuccess(response -> {
         if (response.statusCode() == 200) {
           JsonObject status = response.bodyAsJsonObject();
-          logger.info("Status do processador '{}': {}", processorName, status.encode());
 
           healthStatusService.updateStatus(processorName, status);
 
@@ -57,7 +53,6 @@ public class HealthCheckerService {
   }
 
   private void reportFailure(String processorName, String reason) {
-    logger.warn("Health check para o processador '{}' falhou: {}. Marcando como indisponível.", processorName, reason);
     healthStatusService.updateStatus(processorName, new JsonObject().put("failing", true));
   }
 }
