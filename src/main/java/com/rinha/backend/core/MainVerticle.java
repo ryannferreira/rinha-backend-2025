@@ -1,35 +1,46 @@
 package com.rinha.backend.core;
 
 import com.rinha.backend.config.ConfigLoader;
+import com.rinha.backend.config.DbMigration;
 import com.rinha.backend.config.PgPoolProvider;
+import com.rinha.backend.service.HealthCheckerService;
+import com.rinha.backend.service.HealthStatusService;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Promise;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.vertx.ext.web.client.WebClient;
+import io.vertx.sqlclient.Pool;
 
 public class MainVerticle extends AbstractVerticle {
-  private static final Logger logger = LoggerFactory.getLogger(MainVerticle.class);
 
   @Override
   public void start(Promise<Void> startPromise) {
     ConfigLoader.load(vertx)
+      .compose(config ->
+        vertx.executeBlocking(() -> {
+          DbMigration.execute(config.getJsonObject("database"));
+          return config;
+        })
+      )
       .onSuccess(config -> {
-        System.out.println("Configuração carregada.");
+        Pool pool = PgPoolProvider.create(vertx, config.getJsonObject("database"));
+        WebClient webClient = WebClient.create(vertx);
 
-        PgPoolProvider.initialize(vertx, config.getJsonObject("database"));
+        HealthStatusService healthStatusService = new HealthStatusService();
+
+        HealthCheckerService healthChecker = new HealthCheckerService(vertx, webClient, healthStatusService, config);
+        healthChecker.start();
 
         DeploymentOptions options = new DeploymentOptions().setConfig(config);
+        HttpServerVerticle httpServer = new HttpServerVerticle(pool, webClient, healthStatusService);
 
-        vertx.deployVerticle(new HttpServerVerticle(), options)
+        vertx.deployVerticle(httpServer, options)
           .onSuccess(id -> {
-            System.out.println("HttpServerVerticle implantado com sucesso: " + id);
             startPromise.complete();
           })
           .onFailure(startPromise::fail);
       })
       .onFailure(error -> {
-        System.err.println("Falha ao carregar a configuração: " + error.getMessage());
         startPromise.fail(error);
       });
   }

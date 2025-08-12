@@ -8,13 +8,7 @@ import io.vertx.sqlclient.PoolOptions;
 
 public class PgPoolProvider {
 
-  private static Pool pool;
-
-  public static void initialize(Vertx vertx, JsonObject dbConfig) {
-    if (pool != null) {
-      return;
-    }
-
+  public static Pool create(Vertx vertx, JsonObject dbConfig) {
     PgConnectOptions connectOptions = new PgConnectOptions()
       .setHost(dbConfig.getString("host"))
       .setPort(dbConfig.getInteger("port"))
@@ -24,13 +18,6 @@ public class PgPoolProvider {
 
     PoolOptions poolOptions = new PoolOptions().setMaxSize(5);
 
-    pool = Pool.pool(vertx, connectOptions, poolOptions);
-  }
-
-  public static Pool getPool() {
-    if (pool == null) {
-      throw new IllegalStateException("PgPoolProvider não foi inicializado.");
-    }
-    return pool;
+    return Pool.pool(vertx, connectOptions, poolOptions);
   }
 }

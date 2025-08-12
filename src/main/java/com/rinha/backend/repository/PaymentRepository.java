@@ -5,6 +5,6 @@ import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 
 public interface PaymentRepository {
-  Future<JsonObject> save(Payment payment);
-  Future<JsonObject> getSummary();
+  Future<Void> save(Payment payment);
+  Future<JsonObject> getSummary(String from, String to);
 }

@@ -1,0 +1,78 @@
+services:
+  nginx:
+    image: nginx:1.27.0-alpine
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "9999:9999"
+    networks:
+      - rinha-net
+      - payment-processor
+    depends_on:
+      - api01
+      - api02
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: "15MB"
+
+  api01: &api
+    build: .
+    hostname: api01
+    environment:
+      - DB_HOST=db
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=rinha-backend
+      - PROCESSOR_DEFAULT_URL=http://payment-processor-default:8080
+      - PROCESSOR_FALLBACK_URL=http://payment-processor-fallback:8080
+    networks:
+      - rinha-net
+      - payment-processor
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.6"
+          memory: "155MB"
+
+  api02:
+    <<: *api
+    hostname: api02
+
+  db:
+    image: postgres:16-alpine
+    hostname: db
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=rinha-backend
+    command: postgres -c max_connections=20 -c shared_buffers=10MB -c fsync=off -c synchronous_commit=off
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - rinha-net
+      - payment-processor
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: "25MB"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d rinha-backend -U ${DB_USER}"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+
+networks:
+  rinha-net:
+    driver: bridge
+  payment-processor:
+    external: true
+
+volumes:
+  pg_data:

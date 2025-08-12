@@ -186,3 +186,4 @@ nbdist/
 
 ### Env ###
 dev-config.json
+.env

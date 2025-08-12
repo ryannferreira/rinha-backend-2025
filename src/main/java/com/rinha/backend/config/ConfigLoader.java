@@ -8,7 +8,6 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 
 public class ConfigLoader {
-
   public static Future<JsonObject> load(Vertx vertx) {
     ConfigStoreOptions fileStore = new ConfigStoreOptions()
       .setType("file")

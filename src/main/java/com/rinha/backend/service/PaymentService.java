@@ -5,5 +5,5 @@ import io.vertx.core.json.JsonObject;
 
 public interface PaymentService {
   Future<JsonObject> createPayment(JsonObject paymentData);
-  Future<JsonObject> getSummary();
+  Future<JsonObject> getSummary(String from, String to);
 }
