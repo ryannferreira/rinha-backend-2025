@@ -1,17 +1,22 @@
 package com.rinha.backend.service.impl;
 
 import com.rinha.backend.model.Payment;
+import com.rinha.backend.model.PaymentStatus;
 import com.rinha.backend.repository.PaymentRepository;
 import com.rinha.backend.service.HealthStatusService;
 import com.rinha.backend.service.PaymentProcessorClient;
 import com.rinha.backend.service.PaymentService;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
 public class PaymentServiceImpl implements PaymentService {
+  private static final Logger LOGGER = LoggerFactory.getLogger(PaymentServiceImpl.class);
+
   private final PaymentRepository repository;
   private final PaymentProcessorClient processorClient;
   private final HealthStatusService healthStatusService;
@@ -25,38 +30,46 @@ public class PaymentServiceImpl implements PaymentService {
   }
 
   @Override
-  public Future<JsonObject> createPayment(JsonObject paymentData) {
+  public Future<Void> createPayment(JsonObject paymentData) {
     final UUID correlationId = UUID.fromString(paymentData.getString("correlationId"));
     final BigDecimal amount = new BigDecimal(paymentData.getString("amount"));
 
+    return repository.saveAsPending(correlationId, amount)
+      .onSuccess(savedPayment -> {
+        processAndFinalizePayment(savedPayment);
+      })
+      .mapEmpty();
+  }
+
+  private void processAndFinalizePayment(Payment payment) {
     String primaryProcessor = healthStatusService.getBestProcessor();
 
     if (primaryProcessor == null) {
-      return Future.failedFuture("All payment processors are unavailable");
+      repository.updateStatus(payment.id(), null, PaymentStatus.FAILED);
+      return;
     }
 
     String secondaryProcessor = "default".equals(primaryProcessor) ? "fallback" : "default";
 
-    return executeAndSavePayment(primaryProcessor, correlationId, amount)
+    executeOnProcessor(primaryProcessor, payment)
       .recover(error -> {
-
         if (healthStatusService.isProcessorHealthy(secondaryProcessor)) {
-          return executeAndSavePayment(secondaryProcessor, correlationId, amount);
-        } else {
-          return Future.failedFuture(error);
+          return executeOnProcessor(secondaryProcessor, payment);
         }
+        return Future.failedFuture(error);
       })
-      .map(processorName -> new JsonObject()
-        .put("message", "payment processed by " + processorName)
-        .put("processor", processorName));
+      .onFailure(err ->
+        repository.updateStatus(payment.id(), null, PaymentStatus.FAILED)
+      );
   }
 
-  private Future<String> executeAndSavePayment(String processorName, UUID correlationId, BigDecimal amount) {
-    return processorClient.processPayment(processorName, correlationId, amount)
-      .compose(v -> {
-        Payment payment = new Payment(correlationId, amount, processorName);
-        return repository.save(payment).map(processorName);
-      });
+  private Future<Void> executeOnProcessor(String processorName, Payment payment) {
+    LOGGER.error("Processing payment {} on processor {} with amount {}", payment.correlationId(), processorName, payment.amount());
+
+    return processorClient.processPayment(processorName, payment.correlationId(), payment.amount())
+      .compose(v ->
+        repository.updateStatus(payment.id(), processorName, PaymentStatus.PROCESSED)
+      );
   }
 
   @Override

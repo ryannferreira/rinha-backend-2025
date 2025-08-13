@@ -19,21 +19,25 @@ public class PaymentHandler {
     try {
       JsonObject body = ctx.body().asJsonObject();
       if (body == null || body.getString("correlationId") == null || body.getValue("amount") == null) {
-        ctx.response().setStatusCode(400).end("Campos obrigatórios ausentes.");
+        ctx.response().setStatusCode(400).end("{\"error\":\"Campos obrigatórios ausentes.\"}");
         return;
       }
+
       UUID.fromString(body.getString("correlationId"));
       new BigDecimal(body.getString("amount"));
 
       service.createPayment(body)
-        .onSuccess(result -> ctx.response()
-          .setStatusCode(201)
-          .putHeader("content-type", "application/json")
-          .end(result.encode()))
-        .onFailure(ctx::fail);
+        .onSuccess(v -> {
+          ctx.response()
+            .setStatusCode(202)
+            .end();
+        })
+        .onFailure(err -> {
+          ctx.response().setStatusCode(500).end("{\"error\":\"Internal server error while accepting payment\"}");
+        });
 
     } catch (Exception e) {
-      ctx.response().setStatusCode(400).end("Formato de campo inválido: " + e.getMessage());
+      ctx.response().setStatusCode(400).end("{\"error\":\"Formato de campo inválido: " + e.getMessage() + "\"}");
     }
   }
 

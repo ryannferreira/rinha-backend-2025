@@ -23,10 +23,9 @@ public class HealthCheckerService {
   }
 
   public void start() {
-    vertx.setPeriodic(5100, id -> checkProcessorHealth("default", defaultProcessorUrl));
-
-    vertx.setTimer(2500, id -> {
-      vertx.setPeriodic(5100, id2 -> checkProcessorHealth("fallback", fallbackProcessorUrl));
+    vertx.setPeriodic(5100, id -> {
+      checkProcessorHealth("default", defaultProcessorUrl);
+      checkProcessorHealth("fallback", fallbackProcessorUrl);
     });
   }
 

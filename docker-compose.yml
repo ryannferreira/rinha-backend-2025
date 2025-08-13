@@ -37,7 +37,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.5"
+          cpus: "0.55"
           memory: "135MB"
 
   api02:
@@ -51,7 +51,7 @@ services:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=rinha-backend
-    command: postgres -c max_connections=20 -c shared_buffers=10MB -c fsync=off -c synchronous_commit=off
+    command: postgres -c max_connections=50 -c shared_buffers=10MB -c fsync=off -c synchronous_commit=off
     volumes:
       - pg_data:/var/lib/postgresql/data
     ports:
@@ -62,7 +62,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.4"
+          cpus: "0.3"
           memory: "60MB"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -d rinha-backend -U ${DB_USER}"]

@@ -21,14 +21,16 @@ public class HealthStatusService {
   }
 
   public String getBestProcessor() {
-    boolean isDefaultHealthy = isProcessorHealthy("default");
-    boolean isFallbackHealthy = isProcessorHealthy("fallback");
+    final JsonObject defaultStatus = statuses.get("default");
+    final JsonObject fallbackStatus = statuses.get("fallback");
+
+    final boolean isDefaultHealthy = !defaultStatus.getBoolean("failing");
+    final boolean isFallbackHealthy = !fallbackStatus.getBoolean("failing");
 
     if (isDefaultHealthy && isFallbackHealthy) {
       //Ambos estão saudáveis, desempata pelo menor tempo de resposta
-      int defaultTime = statuses.get("default").getInteger("minResponseTime");
-      int fallbackTime = statuses.get("fallback").getInteger("minResponseTime");
-
+      int defaultTime = defaultStatus.getInteger("minResponseTime");
+      int fallbackTime = fallbackStatus.getInteger("minResponseTime");
       return defaultTime <= fallbackTime ? "default" : "fallback";
 
     } else if (isDefaultHealthy) {
