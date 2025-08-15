@@ -16,23 +16,15 @@ import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.sqlclient.Pool;
 
 public class HttpServerVerticle extends AbstractVerticle {
-  private final Pool pool;
-  private final WebClient webClient;
-  private final HealthStatusService healthStatusService;
+  private final PaymentService paymentService;
 
-  public HttpServerVerticle(Pool pool, WebClient webClient, HealthStatusService healthStatusService) {
-    this.pool = pool;
-    this.webClient = webClient;
-    this.healthStatusService = healthStatusService;
+  public HttpServerVerticle(PaymentService paymentService) {
+    this.paymentService = paymentService;
   }
 
   @Override
   public void start(Promise<Void> startPromise) {
-
-    PaymentRepository repository = new PaymentRepositoryImpl(this.pool);
-    PaymentProcessorClient processorClient = new PaymentProcessorClient(this.webClient, config());
-    PaymentService service = new PaymentServiceImpl(repository, processorClient, this.healthStatusService);
-    PaymentHandler handler = new PaymentHandler(service);
+    PaymentHandler handler = new PaymentHandler(this.paymentService);
 
     Router router = Router.router(vertx);
     router.route().handler(BodyHandler.create());

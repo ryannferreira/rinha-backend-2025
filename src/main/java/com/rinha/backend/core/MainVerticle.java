@@ -1,13 +1,18 @@
 package com.rinha.backend.core;
 
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.rinha.backend.config.ConfigLoader;
 import com.rinha.backend.config.DbMigration;
 import com.rinha.backend.config.PgPoolProvider;
+import com.rinha.backend.repository.PaymentRepository;
+import com.rinha.backend.repository.impl.PaymentRepositoryImpl;
 import com.rinha.backend.service.HealthCheckerService;
 import com.rinha.backend.service.HealthStatusService;
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.DeploymentOptions;
-import io.vertx.core.Promise;
+import com.rinha.backend.service.PaymentProcessorClient;
+import com.rinha.backend.service.PaymentService;
+import com.rinha.backend.service.impl.PaymentServiceImpl;
+import io.vertx.core.*;
+import io.vertx.core.json.jackson.DatabindCodec;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.sqlclient.Pool;
 
@@ -15,6 +20,8 @@ public class MainVerticle extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) {
+    DatabindCodec.mapper().registerModule(new JavaTimeModule());
+
     ConfigLoader.load(vertx)
       .compose(config ->
         vertx.executeBlocking(() -> {
@@ -31,17 +38,27 @@ public class MainVerticle extends AbstractVerticle {
         HealthCheckerService healthChecker = new HealthCheckerService(vertx, webClient, healthStatusService, config);
         healthChecker.start();
 
-        DeploymentOptions options = new DeploymentOptions().setConfig(config);
-        HttpServerVerticle httpServer = new HttpServerVerticle(pool, webClient, healthStatusService);
+        PaymentRepository repository = new PaymentRepositoryImpl(pool);
+        PaymentProcessorClient processorClient = new PaymentProcessorClient(webClient, config);
+        PaymentService paymentService = new PaymentServiceImpl(repository, vertx);
 
-        vertx.deployVerticle(httpServer, options)
-          .onSuccess(id -> {
-            startPromise.complete();
-          })
-          .onFailure(startPromise::fail);
+        int processorInstances = Runtime.getRuntime().availableProcessors();
+        DeploymentOptions processorOptions = new DeploymentOptions()
+          .setConfig(config)
+          .setInstances(processorInstances);
+
+        DeploymentOptions httpOptions = new DeploymentOptions().setConfig(config);
+
+        Future<String> httpVerticleDeployment = vertx.deployVerticle(
+          new HttpServerVerticle(paymentService), httpOptions);
+
+        Future<String> processorVerticleDeployment = vertx.deployVerticle(
+          new PaymentProcessorVerticle(repository, processorClient, healthStatusService), processorOptions);
+
+        Future.all(httpVerticleDeployment, processorVerticleDeployment)
+          .onSuccess(v -> startPromise.complete())
+          .onFailure(err -> startPromise.fail(err));
       })
-      .onFailure(error -> {
-        startPromise.fail(error);
-      });
+      .onFailure(startPromise::fail);
   }
 }
