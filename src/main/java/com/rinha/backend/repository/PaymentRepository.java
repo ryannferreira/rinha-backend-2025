@@ -10,6 +10,6 @@ import java.util.UUID;
 
 public interface PaymentRepository {
   Future<Payment> saveAsPending(UUID correlationId, BigDecimal amount);
-  Future<Void> updateStatus(UUID paymentId, String processorName, PaymentStatus status);
+  Future<Void> updateStatus(Long paymentId, String processorName, PaymentStatus status);
   Future<JsonObject> getSummary(String from, String to);
 }

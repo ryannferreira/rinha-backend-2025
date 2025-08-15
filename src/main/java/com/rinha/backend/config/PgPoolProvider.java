@@ -16,7 +16,7 @@ public class PgPoolProvider {
       .setUser(dbConfig.getString("user"))
       .setPassword(dbConfig.getString("password"));
 
-    PoolOptions poolOptions = new PoolOptions().setMaxSize(25);
+    PoolOptions poolOptions = new PoolOptions().setMaxSize(10);
 
     return Pool.pool(vertx, connectOptions, poolOptions);
   }

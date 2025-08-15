@@ -46,7 +46,6 @@ public class HttpServerVerticle extends AbstractVerticle {
       .requestHandler(router)
       .listen(port)
       .onSuccess(server -> {
-        System.out.println("Servidor HTTP iniciado na porta " + server.actualPort());
         startPromise.complete();
       })
       .onFailure(startPromise::fail);

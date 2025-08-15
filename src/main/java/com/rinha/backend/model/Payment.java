@@ -5,7 +5,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record Payment(
-  UUID id,
+  Long id,
   UUID correlationId,
   BigDecimal amount,
   String processor,

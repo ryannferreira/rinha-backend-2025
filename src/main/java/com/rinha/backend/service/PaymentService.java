@@ -1,6 +1,5 @@
 package com.rinha.backend.service;
 
-import com.rinha.backend.model.Payment;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 

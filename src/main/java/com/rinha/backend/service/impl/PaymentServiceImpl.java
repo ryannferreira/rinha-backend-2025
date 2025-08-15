@@ -8,15 +8,11 @@ import com.rinha.backend.service.PaymentProcessorClient;
 import com.rinha.backend.service.PaymentService;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
 public class PaymentServiceImpl implements PaymentService {
-  private static final Logger LOGGER = LoggerFactory.getLogger(PaymentServiceImpl.class);
-
   private final PaymentRepository repository;
   private final PaymentProcessorClient processorClient;
   private final HealthStatusService healthStatusService;
@@ -56,6 +52,7 @@ public class PaymentServiceImpl implements PaymentService {
         if (healthStatusService.isProcessorHealthy(secondaryProcessor)) {
           return executeOnProcessor(secondaryProcessor, payment);
         }
+
         return Future.failedFuture(error);
       })
       .onFailure(err ->
@@ -64,8 +61,6 @@ public class PaymentServiceImpl implements PaymentService {
   }
 
   private Future<Void> executeOnProcessor(String processorName, Payment payment) {
-    LOGGER.error("Processing payment {} on processor {} with amount {}", payment.correlationId(), processorName, payment.amount());
-
     return processorClient.processPayment(processorName, payment.correlationId(), payment.amount())
       .compose(v ->
         repository.updateStatus(payment.id(), processorName, PaymentStatus.PROCESSED)

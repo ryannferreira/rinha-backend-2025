@@ -38,7 +38,7 @@ public class PaymentRepositoryImpl implements PaymentRepository {
   }
 
   @Override
-  public Future<Void> updateStatus(UUID paymentId, String processorName, PaymentStatus status) {
+  public Future<Void> updateStatus(Long paymentId, String processorName, PaymentStatus status) {
     StringBuilder sql = new StringBuilder();
     sql.append("UPDATE payments SET status = $1, processor = $2 ");
     sql.append("WHERE id = $3");
@@ -50,7 +50,7 @@ public class PaymentRepositoryImpl implements PaymentRepository {
 
   private Payment mapRowToPayment(Row row) {
     return new Payment(
-      row.getUUID("id"),
+      row.getLong("id"),
       row.getUUID("correlation_id"),
       row.getBigDecimal("amount"),
       row.getString("processor"),
@@ -89,9 +89,12 @@ public class PaymentRepositoryImpl implements PaymentRepository {
         .put("fallback", new JsonObject().put("totalRequests", 0L).put("totalAmount", 0.0));
 
         for (Row row : rows) {
-          summary.getJsonObject(row.getString("processor"))
-            .put("totalRequests", row.getLong("total_requests"))
-            .put("totalAmount", row.getNumeric("total_amount"));
+          String processorName = row.getString("processor");
+          if (processorName != null && summary.containsKey(processorName)) {
+            summary.getJsonObject(processorName)
+              .put("totalRequests", row.getLong("total_requests"))
+              .put("totalAmount", row.getNumeric("total_amount"));
+          }
         }
         return summary;
       });

@@ -18,8 +18,9 @@ public class PaymentHandler {
   public void handlePostPayments(RoutingContext ctx) {
     try {
       JsonObject body = ctx.body().asJsonObject();
+
       if (body == null || body.getString("correlationId") == null || body.getValue("amount") == null) {
-        ctx.response().setStatusCode(400).end("{\"error\":\"Campos obrigatórios ausentes.\"}");
+        ctx.response().setStatusCode(400).end();
         return;
       }
 
@@ -28,16 +29,14 @@ public class PaymentHandler {
 
       service.createPayment(body)
         .onSuccess(v -> {
-          ctx.response()
-            .setStatusCode(202)
-            .end();
+          ctx.response().setStatusCode(202).end();
         })
         .onFailure(err -> {
-          ctx.response().setStatusCode(500).end("{\"error\":\"Internal server error while accepting payment\"}");
+          ctx.response().setStatusCode(500).end();
         });
 
     } catch (Exception e) {
-      ctx.response().setStatusCode(400).end("{\"error\":\"Formato de campo inválido: " + e.getMessage() + "\"}");
+      ctx.response().setStatusCode(400).end();
     }
   }
 

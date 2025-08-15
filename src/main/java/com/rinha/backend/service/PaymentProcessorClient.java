@@ -32,7 +32,7 @@ public class PaymentProcessorClient {
       .postAbs(targetUrl + "/payments")
       .putHeader("Accept", "application/json")
       .putHeader("User-Agent", "middlewarePagamentos/1.0")
-      .timeout(1500)
+      .timeout(1000)
       .sendJsonObject(requestBody)
       .flatMap(response -> {
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
