@@ -18,47 +18,48 @@ import io.vertx.sqlclient.Pool;
 
 public class MainVerticle extends AbstractVerticle {
 
-  @Override
-  public void start(Promise<Void> startPromise) {
-    DatabindCodec.mapper().registerModule(new JavaTimeModule());
+    @Override
+    public void start(Promise<Void> startPromise) {
+        DatabindCodec.mapper().registerModule(new JavaTimeModule());
 
-    ConfigLoader.load(vertx)
-      .compose(config ->
-        vertx.executeBlocking(() -> {
-          DbMigration.execute(config.getJsonObject("database"));
-          return config;
-        })
-      )
-      .onSuccess(config -> {
-        Pool pool = PgPoolProvider.create(vertx, config.getJsonObject("database"));
-        WebClient webClient = WebClient.create(vertx);
+        ConfigLoader.load(vertx)
+                .compose(config ->
+                        vertx.executeBlocking(() -> {
+                            DbMigration.execute(config.getJsonObject("database"));
+                            return config;
+                        })
+                )
+                .onSuccess(config -> {
+                    Pool pool = PgPoolProvider.create(vertx, config.getJsonObject("database"));
+                    WebClient webClient = WebClient.create(vertx);
 
-        HealthStatusService healthStatusService = new HealthStatusService();
+                    HealthStatusService healthStatusService = new HealthStatusService();
 
-        HealthCheckerService healthChecker = new HealthCheckerService(vertx, webClient, healthStatusService, config);
-        healthChecker.start();
+                    HealthCheckerService healthChecker = new HealthCheckerService(vertx, webClient, healthStatusService, config);
+                    healthChecker.start();
 
-        PaymentRepository repository = new PaymentRepositoryImpl(pool);
-        PaymentProcessorClient processorClient = new PaymentProcessorClient(webClient, config);
-        PaymentService paymentService = new PaymentServiceImpl(repository, vertx);
+                    PaymentRepository repository = new PaymentRepositoryImpl(pool);
+                    PaymentProcessorClient processorClient = new PaymentProcessorClient(webClient, config);
+                    PaymentService paymentService = new PaymentServiceImpl(repository, vertx);
 
-        int processorInstances = Runtime.getRuntime().availableProcessors();
-        DeploymentOptions processorOptions = new DeploymentOptions()
-          .setConfig(config)
-          .setInstances(processorInstances);
+                    int processorInstances = Runtime.getRuntime().availableProcessors();
+                    DeploymentOptions processorOptions = new DeploymentOptions()
+                            .setConfig(config)
+                            .setThreadingModel(ThreadingModel.WORKER)
+                            .setInstances(processorInstances);
 
-        DeploymentOptions httpOptions = new DeploymentOptions().setConfig(config);
+                    DeploymentOptions httpOptions = new DeploymentOptions().setConfig(config);
 
-        Future<String> httpVerticleDeployment = vertx.deployVerticle(
-          new HttpServerVerticle(paymentService), httpOptions);
+                    Future<String> httpVerticleDeployment = vertx.deployVerticle(
+                            new HttpServerVerticle(paymentService), httpOptions);
 
-        Future<String> processorVerticleDeployment = vertx.deployVerticle(
-          new PaymentProcessorVerticle(repository, processorClient, healthStatusService), processorOptions);
+                    Future<String> processorVerticleDeployment = vertx.deployVerticle(
+                            new PaymentProcessorVerticle(repository, processorClient, healthStatusService), processorOptions);
 
-        Future.all(httpVerticleDeployment, processorVerticleDeployment)
-          .onSuccess(v -> startPromise.complete())
-          .onFailure(err -> startPromise.fail(err));
-      })
-      .onFailure(startPromise::fail);
-  }
+                    Future.all(httpVerticleDeployment, processorVerticleDeployment)
+                            .onSuccess(v -> startPromise.complete())
+                            .onFailure(err -> startPromise.fail(err));
+                })
+                .onFailure(startPromise::fail);
+    }
 }
